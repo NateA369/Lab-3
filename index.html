@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <title>Map Example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+            position: absolute;
+        }
+
+        #data-table {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1;
+            display: block;
+        }
+
+        #data-table h2 {
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 1024px) {
+            #data-table {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="data-table">
+    <h2>Obesity Rates by State</h2>
+    <table id="obesity-table"></table>
+</div>
+
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoibmF0ZWEzNjkiLCJhIjoiY2xvejhldmUxMDltdDMybXB6ZGNwdXh0MSJ9.dhamz50QtURIQ_BhPS78aw';
+
+let map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/light-v10',
+    zoom: 3,
+    center: [-99, 38]
+});
+
+async function geojsonFetch(url) {
+    try {
+        let response = await fetch(url);
+        let data = await response.json();
+
+        console.log('Data fetched:', data);
+
+        return data;
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        throw error;
+    }
+}
+
+Promise.all([
+    geojsonFetch('assets/Obesity_byState.geojson'),
+    geojsonFetch('assets/USAStates.json')
+]).then(([obesityData, usaStatesData]) => {
+    console.log('Data received:', obesityData, usaStatesData);
+
+    map.on('load', function () {
+        console.log('Map loaded');
+
+        // Add GeoJSON source for obesity data
+        map.addSource('obesity-data', {
+            type: 'geojson',
+            data: obesityData
+        });
+
+        // Add layer for obesity data
+        map.addLayer({
+            'id': 'obesity-layer',
+            'type': 'fill',
+            'source': 'obesity-data',
+            'paint': {
+                'fill-color': {
+                    property: 'Obesity',
+                    stops: [
+                        [20, '#f2f0f7'],
+                        [25, '#dadaeb'],
+                        [30, '#bcbddc'],
+                        [35, '#9e9ac8'],
+                        [40, '#756bb1'],
+                        [45, '#54278f']
+                    ]
+                },
+                'fill-opacity': 0.7
+            }
+        });
+
+        // Add GeoJSON source for USA states data
+        map.addSource('usa-states-data', {
+            type: 'geojson',
+            data: usaStatesData
+        });
+
+        // Add layer for USA states data
+        map.addLayer({
+            'id': 'usa-states-layer',
+            'type': 'line',
+            'source': 'usa-states-data',
+            'paint': {
+                'line-color': '#4285f4',
+                'line-width': 2
+            }
+        });
+    });
+
+    // Display obesity data in a table
+    displayDataTable(obesityData, 'obesity-table');
+}).catch((error) => {
+    console.error('Error in geojsonFetch:', error);
+});
+
+function displayDataTable(data, tableId) {
+    let table = document.getElementById(tableId);
+    let headerRow = table.insertRow(0);
+
+    for (let key in data.features[0].properties) {
+        let th = document.createElement('th');
+        th.textContent = key;
+        headerRow.appendChild(th);
+    }
+
+    for (let feature of data.features) {
+        let row = table.insertRow(-1);
+        for (let key in feature.properties) {
+            let cell = row.insertCell(-1);
+            cell.textContent = feature.properties[key];
+        }
+    }
+}
+</script>
+
+</body>
+</html>
+
+
+
+
+
